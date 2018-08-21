@@ -1,0 +1,17 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: circleci/python:latest
+    steps:
+      - checkout
+      - run:
+          name: Setup env
+          command: |
+            pip install pipenv
+            pipenv install --system --deploy
+      - run:
+          name: Run test
+          command: |
+            python test_hconfig.py
