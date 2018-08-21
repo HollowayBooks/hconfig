@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Simple config handling with hierarchical overrides.
 Combines and merges multiple YAML files so child files "inherit" values from "parent" ones.
@@ -7,7 +6,6 @@ Not performance oriented, for moderately sized configs.
 Can be used from command line or as a lib.
 """
 
-import argparse
 from collections import OrderedDict
 from itertools import chain
 from pathlib import Path
@@ -201,18 +199,3 @@ def merge_files(target_filename, *yaml_filenames, strict_base=True, make_parents
       elif target_path.suffix == '.yml':
         output_format = 'yaml'
       merge_files_to_stream(out, *yaml_filenames, strict_base=strict_base, output_format=output_format)
-
-
-if __name__ == '__main__':
-  parser = argparse.ArgumentParser(description=__doc__)
-  parser.add_argument("file", nargs="+")
-  parser.add_argument("-o", "--output", help="output (otherwise stdout)")
-  parser.add_argument("-f", "--output-format", help="format of output file", default='yaml')
-  parser.add_argument("-s", "--strict-base", help="pass this flag to enable strict base", action='store_true')
-  args = parser.parse_args()
-  print("Running with args={}".format(args))
-  print("environ={}".format(repr(os.environ)))
-  if args.output:
-    merge_files(args.output, *args.file, strict_base=args.strict_base, output_format=args.output_format)
-  else:
-    merge_files_to_stream(sys.stdout, *args.file, strict_base=args.strict_base, output_format=args.output_format)
