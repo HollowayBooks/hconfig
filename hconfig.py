@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""
+Simple config handling with hierarchical overrides.
+Combines and merges multiple YAML files so child files "inherit" values from "parent" ones.
+Not performance oriented, for moderately sized configs.
+
+Can be used from command line or as a lib.
+"""
+
+import argparse
+from collections import OrderedDict
+from itertools import chain
+from pathlib import Path
+
+import sys
+from ruamel.yaml import YAML
+from strif import atomic_output_file
+from io import StringIO
+import os.path
+import json
+import os
+
+
+def as_yaml_string(data):
+  """
+  Convert an object to a literal YAML string.
+  """
+  out = StringIO()
+  yaml = YAML()
+  yaml.dump(data, out)
+  return out.getvalue()
+
+
+class IncompatibleValues(ValueError):
+  """
+  When overridden values or structures are incompatible.
+  """
+
+  def __init__(self, message, *details):
+    self.message = message
+    self.details = details
+
+  def __str__(self):
+    return "%s\n%s\n" % (self.message, "\n-----\n".join(as_yaml_string(detail) for detail in self.details))
+
+
+def _is_atomic(item):
+  """None or other atomic value."""
+  return not isinstance(item, dict) and not isinstance(item, list)
+
+
+def _toint(value: str) -> int:
+  return int(value)
+
+
+def _expandenv(value: str):
+  return os.path.expandvars(value)
+
+
+FUNCTIONS = {"H::int": _toint, "H::expandenv": _expandenv}
+
+
+def evaluate_functions(tree):
+  # FIXME: newer versions of ruamel break this check
+  if isinstance(tree, dict):
+    for key, value in tree.items():
+      if isinstance(value, dict):
+        for funcname, func in FUNCTIONS.items():
+          if funcname in value:
+            tree[key] = func(*value[funcname])
+            break
+        else:
+          tree[key] = evaluate_functions(value)
+      else:
+        tree[key] = evaluate_functions(value)
+  elif isinstance(tree, list):
+    for j, item in enumerate(tree):
+      if isinstance(item, dict):
+        for funcname, func in FUNCTIONS.items():
+          if funcname in item:
+            tree[j] = func(*item[funcname])
+            break
+        else:
+          tree[j] = evaluate_functions(item)
+      else:
+        tree[j] = evaluate_functions(item)
+  return tree
+
+
+def _merge_lists_by_dict_id(*lists, id_field="id"):
+  """
+  Combine a list of items, eliding dict items (overrides) that have the same id field value.
+  Ordering is preserved, except for overridden items, which appear at the point where (last) override occurred.
+  """
+  # TODO: Could also support concatenation of lists if first item in second list is a magic string (say "...")
+  all_items = list(chain(*lists))
+  value_by_id = {}
+
+  non_ids = 0
+  for item in all_items:
+    if isinstance(item, dict) and id_field in item:
+      value_by_id[item[id_field]] = item
+    else:
+      non_ids += 1
+
+  if len(value_by_id) > 0:
+    # We have objects with ids, so include all previous values.
+    if non_ids > 0:
+      raise IncompatibleValues("if some items have an id, all items should have an id", *lists)
+
+    result = []
+    for item in all_items:
+      if item[id_field] not in value_by_id or item is value_by_id[item[id_field]]:  # Last override.
+        result.append(item)
+    return result
+  else:
+    # In all other situations, we only use the last list.
+    return lists[-1]
+
+
+def merge_trees(*trees, list_merger=_merge_lists_by_dict_id, dict_type=dict, strict_base=True):
+  """
+  Merge compatible trees (dicts, lists, or atomic), where values in later trees override values in
+  earlier trees. Trees must have compatible structure (corresponding keys have same general types).
+  If strict_base is set, we enforce that non-empty dictionaries in the base (the first tree) must
+  list every key that is used elsewhere.
+  """
+  if len(trees) < 1:
+    raise IncompatibleValues("must have at least one tree", trees)
+  if all(_is_atomic(tree) for tree in trees):
+    # Atomic values supersede.
+    return trees[-1]
+  # FIXME: newer versions of ruamel break this check
+  elif all(isinstance(tree, dict) for tree in trees):  # Covers OrderedDict, ruamel CommentedMap, EasyDict, dict.
+    # Merge dictionaries recursively. We preserve order (so don't use defaultdict).
+    # First roll up mapping of keys to all past values.
+    key_map = OrderedDict()
+    base = trees[0]
+    for d in trees:
+      for key, value in d.items():
+        # With strict mode, an empty base can be overridden, but if any are named, all must be named.
+        if strict_base and len(base) > 0 and key not in base:
+          raise IncompatibleValues("base definition does not include key '%s'" % key, list(base.keys()), list(d.keys()))
+        if key not in key_map:
+          key_map[key] = []
+        key_map[key].append(value)
+    # Now merge each one.
+    target = dict_type()
+    for (key, items_to_merge) in key_map.items():
+      target[key] = merge_trees(*items_to_merge, list_merger=list_merger, dict_type=dict_type)
+    return target
+  elif all(isinstance(tree, list) for tree in trees):
+    # Merge lists.
+    return list_merger(*trees)
+  else:
+    raise IncompatibleValues("to merge, overrides must match overridden type (atomic/list/dict): %s", *trees)
+
+
+def load_file(filename: Path):
+  if filename.suffix == '.json':
+    with open(filename) as f:
+      return json.load(f)
+  elif filename.suffix == '.yml':
+    yaml = YAML()
+    return yaml.load(filename)
+  else:
+    raise Exception("unsupported file type: {}".format(filename))
+
+
+def merge_files_to_stream(target_stream, *yaml_filenames, strict_base=True, output_format='yaml'):
+  if output_format == 'yaml':
+    target_stream.write("# *** Not an original file! Generated by hconfig.py from other config files.\n")
+    target_stream.write("# *** Sources: %s\n" % ", ".join(yaml_filenames))
+    output_writer = YAML()
+  elif output_format == 'json':
+    output_writer = json
+  # noinspection PyTypeChecker
+  output_tree = merge_trees(*(load_file(Path(filename)) for filename in yaml_filenames), strict_base=strict_base)
+
+  # To another pass to replace string with values coming from env vars
+  evaluate_functions(output_tree)
+
+  output_writer.dump(output_tree, target_stream)
+
+
+def merge_files(target_filename, *yaml_filenames, strict_base=True, make_parents=True, output_format='yaml'):
+  """
+  Merge and write out a unified config file to target location, with settings from later files overriding
+  those in earlier files, and output in consistent key order (according to last occurrence).
+  """
+  with atomic_output_file(target_filename, make_parents=make_parents) as temp_out:
+    with open(temp_out, "w") as out:
+      target_path = Path(target_filename)
+      if target_path.suffix == '.json':
+        output_format = 'json'
+      elif target_path.suffix == '.yml':
+        output_format = 'yaml'
+      merge_files_to_stream(out, *yaml_filenames, strict_base=strict_base, output_format=output_format)
+
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser(description=__doc__)
+  parser.add_argument("file", nargs="+")
+  parser.add_argument("-o", "--output", help="output (otherwise stdout)")
+  parser.add_argument("-f", "--output-format", help="format of output file", default='yaml')
+  parser.add_argument("-s", "--strict-base", help="pass this flag to enable strict base", action='store_true')
+  args = parser.parse_args()
+  print("Running with args={}".format(args))
+  print("environ={}".format(repr(os.environ)))
+  if args.output:
+    merge_files(args.output, *args.file, strict_base=args.strict_base, output_format=args.output_format)
+  else:
+    merge_files_to_stream(sys.stdout, *args.file, strict_base=args.strict_base, output_format=args.output_format)
