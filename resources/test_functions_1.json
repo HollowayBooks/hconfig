@@ -1,0 +1,13 @@
+{
+  "hello": { "H::expandenv": "world-${MYVAR}" },
+  "array": [
+    { "H::expandenv": "world-${MYVAR}" },
+    { "nested": { "H::expandenv": "world-${MYVAR}" } }
+  ],
+  "object": {
+    "a": {
+      "b": { "H::expandenv": "world-${MYVAR}" },
+      "number": { "H::int": { "H::expandenv": "${MYN}" } }
+    }
+  }
+}

@@ -1,10 +1,12 @@
 import unittest
 
-from hconfig import _merge_lists_by_dict_id, merge_trees, merge_files, IncompatibleValues
+from hconfig import _merge_lists_by_dict_id, merge_trees, merge_files, IncompatibleValues, merge_files_to_stream
 from strif import temp_output_file, read_string_from_file, write_string_to_file
 from contextlib import contextmanager
 from io import StringIO
 from ruamel.yaml import YAML
+import os
+import json
 
 
 def yaml_equal(string1, string2):
@@ -108,6 +110,15 @@ class HConfigTests(unittest.TestCase):
         },
         "list": [1, 2, 3]
       })
+
+  def test_functions(self):
+    output = StringIO()
+    os.environ['MYN'] = "42"
+    os.environ['MYVAR'] = 'foo'
+    merge_files_to_stream(output, "resources/test_functions_1.json", output_format='json')
+    expected_output = read_string_from_file("resources/test_functions_output.json")
+    # Reserializing output to be compact rather than pretty printed
+    self.assertEqual(output.getvalue(), json.dumps(json.loads(expected_output)))
 
   def test_merge_files(self):
     base_config = """

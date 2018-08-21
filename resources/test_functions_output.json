@@ -1,0 +1,10 @@
+{
+  "hello": "world-foo",
+  "array": ["world-foo", { "nested": "world-foo" }],
+  "object": {
+    "a": {
+      "b": "world-foo",
+      "number": 42
+    }
+  }
+}
