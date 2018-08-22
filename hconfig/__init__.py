@@ -10,13 +10,12 @@ from collections import OrderedDict
 from itertools import chain
 from pathlib import Path
 
-import sys
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from strif import atomic_output_file
 from io import StringIO
 import os.path
 import json
-import os
 
 
 def as_yaml_string(data):
@@ -39,7 +38,8 @@ class IncompatibleValues(ValueError):
     self.details = details
 
   def __str__(self):
-    return "%s\n%s\n" % (self.message, "\n-----\n".join(as_yaml_string(detail) for detail in self.details))
+    return "%s\n%s\ntypes:%s\n" % (self.message, "\n-----\n".join(as_yaml_string(detail) for detail in self.details),
+                                   ",".join(str(type(d)) for d in self.details))
 
 
 def _is_atomic(item):
@@ -51,7 +51,7 @@ def _toint(value: str) -> int:
   return int(value)
 
 
-def _expandenv(value: str):
+def _expandenv(value: str) -> str:
   return os.path.expandvars(value)
 
 
@@ -121,6 +121,23 @@ def _merge_lists_by_dict_id(*lists, id_field="id"):
     return lists[-1]
 
 
+def get_node_type(node):
+  if is_function(node):
+    func = FUNCTIONS[list(node.keys())[0]]
+    return func.__annotations__['return']
+  else:
+    return type(node)
+
+
+ATOMIC_TYPES = [str, int, float, bool]
+DICT_TYPES = [dict, OrderedDict, CommentedMap]
+LIST_TYPES = [list, CommentedSeq]
+
+
+def is_type(node, types: list) -> bool:
+  return get_node_type(node) in types
+
+
 def merge_trees(*trees, list_merger=_merge_lists_by_dict_id, dict_type=dict, strict_base=True):
   """
   Merge compatible trees (dicts, lists, or atomic), where values in later trees override values in
@@ -130,11 +147,11 @@ def merge_trees(*trees, list_merger=_merge_lists_by_dict_id, dict_type=dict, str
   """
   if len(trees) < 1:
     raise IncompatibleValues("must have at least one tree", trees)
-  if all(_is_atomic(tree) for tree in trees):
+  if all(is_type(tree, ATOMIC_TYPES) for tree in trees):
     # Atomic values supersede.
     return trees[-1]
   # FIXME: newer versions of ruamel break this check
-  elif all(isinstance(tree, dict) for tree in trees):  # Covers OrderedDict, ruamel CommentedMap, EasyDict, dict.
+  elif all(is_type(tree, DICT_TYPES) for tree in trees):  # Covers OrderedDict, ruamel CommentedMap, EasyDict, dict.
     # Merge dictionaries recursively. We preserve order (so don't use defaultdict).
     # First roll up mapping of keys to all past values.
     key_map = OrderedDict()
@@ -152,7 +169,7 @@ def merge_trees(*trees, list_merger=_merge_lists_by_dict_id, dict_type=dict, str
     for (key, items_to_merge) in key_map.items():
       target[key] = merge_trees(*items_to_merge, list_merger=list_merger, dict_type=dict_type)
     return target
-  elif all(isinstance(tree, list) for tree in trees):
+  elif all(is_type(tree, LIST_TYPES) for tree in trees):
     # Merge lists.
     return list_merger(*trees)
   else:

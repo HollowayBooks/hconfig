@@ -7,6 +7,7 @@ from io import StringIO
 from ruamel.yaml import YAML
 import os
 import json
+from glob import glob
 
 
 def yaml_equal(string1, string2):
@@ -29,6 +30,13 @@ def string_as_file(string: str, suffix: str = ""):
 
 
 class HConfigTests(unittest.TestCase):
+  def _run_files_test(self, base: str):
+    output = StringIO()
+    merge_files_to_stream(output, *glob("resources/{}_?.json".format(base)), output_format='json')
+    expected_output = read_string_from_file("resources/{}_output.json".format(base))
+    # Reserializing output to be compact rather than pretty printed
+    self.assertEqual(output.getvalue(), json.dumps(json.loads(expected_output)))
+
   def test_list_merger(self):
     self.assertEqual(
       _merge_lists_by_dict_id([{
@@ -112,13 +120,13 @@ class HConfigTests(unittest.TestCase):
       })
 
   def test_functions(self):
-    output = StringIO()
     os.environ['MYN'] = "42"
     os.environ['MYVAR'] = 'foo'
-    merge_files_to_stream(output, "resources/test_functions_1.json", output_format='json')
-    expected_output = read_string_from_file("resources/test_functions_output.json")
-    # Reserializing output to be compact rather than pretty printed
-    self.assertEqual(output.getvalue(), json.dumps(json.loads(expected_output)))
+    self._run_files_test("test_functions")
+
+  def test_function_override(self):
+    os.environ['FOO'] = 'bar'
+    self._run_files_test("test_function_override")
 
   def test_merge_files(self):
     base_config = """
