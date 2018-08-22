@@ -14,7 +14,7 @@ setup(
   ],
   license='Apache',
   long_description=open('README.md').read(),
-  install_requires=["strif", "ruamel.yaml==0.15.34"],
+  install_requires=["strif", "ruamel.yaml==0.15.60"],
   url="https://github.com/feynmanlabs/hconfig",
   maintainer="Holloway Inc",
   maintainer_email="info@holloway.com",

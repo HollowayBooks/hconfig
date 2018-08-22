@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 strif = "*"
-"ruamel.yaml" = "==0.15.34"
+"ruamel.yaml" = "==0.15.60"
 
 [dev-packages]
 ipython = "*"

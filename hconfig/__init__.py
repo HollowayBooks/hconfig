@@ -58,10 +58,30 @@ def _expandenv(value: str) -> str:
 FUNCTIONS = {"H::int": _toint, "H::expandenv": _expandenv}
 
 
+def get_node_type(node):
+  if is_function(node):
+    func = FUNCTIONS[list(node.keys())[0]]
+    return func.__annotations__['return']
+  else:
+    return type(node)
+
+
+ATOMIC_TYPES = [str, int, float, bool]
+DICT_TYPES = [dict, OrderedDict, CommentedMap]
+LIST_TYPES = [list, CommentedSeq]
+
+
+def is_type(node, types: list) -> bool:
+  return get_node_type(node) in types
+
+
 def is_function(node: dict):
-  if isinstance(node, dict) and len(node) == 1:
-    funcname = list(node.keys())[0]
-    return funcname in FUNCTIONS
+  try:
+    if len(node) == 1:
+      funcname = list(node.keys())[0]
+      return funcname in FUNCTIONS
+  except:
+    pass
   return False
 
 
@@ -75,13 +95,13 @@ def evaluate_function(node: dict):
 
 def evaluate_functions(tree):
   # FIXME: newer versions of ruamel break this check
-  if isinstance(tree, dict):
+  if is_type(tree, DICT_TYPES):
     for key, value in tree.items():
       if is_function(value):
         tree[key] = evaluate_function(value)
       else:
         tree[key] = evaluate_functions(value)
-  elif isinstance(tree, list):
+  elif is_type(tree, LIST_TYPES):
     for j, item in enumerate(tree):
       if is_function(item):
         tree[j] = evaluate_function(item)
@@ -101,7 +121,7 @@ def _merge_lists_by_dict_id(*lists, id_field="id"):
 
   non_ids = 0
   for item in all_items:
-    if isinstance(item, dict) and id_field in item:
+    if is_type(item, DICT_TYPES) and id_field in item:
       value_by_id[item[id_field]] = item
     else:
       non_ids += 1
@@ -119,23 +139,6 @@ def _merge_lists_by_dict_id(*lists, id_field="id"):
   else:
     # In all other situations, we only use the last list.
     return lists[-1]
-
-
-def get_node_type(node):
-  if is_function(node):
-    func = FUNCTIONS[list(node.keys())[0]]
-    return func.__annotations__['return']
-  else:
-    return type(node)
-
-
-ATOMIC_TYPES = [str, int, float, bool]
-DICT_TYPES = [dict, OrderedDict, CommentedMap]
-LIST_TYPES = [list, CommentedSeq]
-
-
-def is_type(node, types: list) -> bool:
-  return get_node_type(node) in types
 
 
 def merge_trees(*trees, list_merger=_merge_lists_by_dict_id, dict_type=dict, strict_base=True):

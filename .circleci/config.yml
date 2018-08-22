@@ -3,15 +3,14 @@ version: 2
 jobs:
   build:
     docker:
-      - image: python:3.6.5-alpine
+      - image: circleci/python:latest
     steps:
       - checkout
       - run:
           name: Setup env
           command: |
-            pip install pipenv
-            apk add --update --no-cache alpine-sdk
-            pipenv install --deploy --system
+            sudo pip install pipenv
+            sudo pipenv install --deploy --system
       - run:
           name: Run test
           command: |

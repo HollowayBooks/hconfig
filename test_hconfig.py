@@ -30,6 +30,13 @@ def string_as_file(string: str, suffix: str = ""):
 
 
 class HConfigTests(unittest.TestCase):
+  def assertYamlEqual(self, expected: str, result: str):
+    yaml = YAML()
+    expected_parsed = yaml.load(StringIO(expected))
+    result_parsed = yaml.load(StringIO(result))
+    self.assertEqual(expected_parsed, result_parsed, "Expected is:\n----\n{}\n----\Result:\n----\n{}".format(
+      expected, result))
+
   def _run_files_test(self, base: str):
     output = StringIO()
     merge_files_to_stream(output, *glob("resources/{}_?.json".format(base)), output_format='json')
@@ -203,7 +210,7 @@ class HConfigTests(unittest.TestCase):
       with temp_output_file(suffix='.yml') as (fd, target_file):
         merge_files(target_file, parent_file, child_file, strict_base=False)
         result = read_string_from_file(target_file)
-        self.assertTrue(yaml_equal(expected, result))
+        self.assertYamlEqual(expected, result)
 
 
 if __name__ == '__main__':
