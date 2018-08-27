@@ -11,9 +11,11 @@ if __name__ == '__main__':
   parser.add_argument("-o", "--output", help="output (otherwise stdout)")
   parser.add_argument("-f", "--output-format", help="format of output file", default='yaml')
   parser.add_argument("-s", "--strict-base", help="pass this flag to enable strict base", action='store_true')
+  parser.add_argument("-D", "--debug", help="print debug logs", action='store_true', default=False)
   args = parser.parse_args()
-  print("Running with args={}".format(args))
-  print("environ={}".format(repr(os.environ)))
+  if args.debug:
+    print("Running with args={}".format(args))
+    print("environ={}".format(repr(os.environ)))
   if args.output:
     hconfig.merge_files(args.output, *args.file, strict_base=args.strict_base, output_format=args.output_format)
   else:
