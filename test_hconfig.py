@@ -39,7 +39,9 @@ class HConfigTests(unittest.TestCase):
 
   def _run_files_test(self, base: str):
     output = StringIO()
-    merge_files_to_stream(output, *glob("resources/{}_?.json".format(base)), output_format='json')
+    files = glob("resources/{}_?.json".format(base))
+    files.sort()
+    merge_files_to_stream(output, *files, output_format='json')
     expected_output = read_string_from_file("resources/{}_output.json".format(base))
     # Reserializing output to be compact rather than pretty printed
     self.assertEqual(output.getvalue(), json.dumps(json.loads(expected_output)))
