@@ -11,11 +11,13 @@ from itertools import chain
 from pathlib import Path
 
 from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.comments import CommentedMap, CommentedSeq, TaggedScalar
+from ruamel.yaml.scalarstring import PreservedScalarString
 from strif import atomic_output_file
 from io import StringIO
 import os.path
 import json
+import getpass
 
 
 def as_yaml_string(data):
@@ -55,7 +57,11 @@ def _expandenv(value: str) -> str:
   return os.path.expandvars(value)
 
 
-FUNCTIONS = {"H::int": _toint, "H::expandenv": _expandenv}
+def _username(arg: str) -> str:
+  return getpass.getuser()
+
+
+FUNCTIONS = {"H::int": _toint, "H::expandenv": _expandenv, "H::username": _username}
 
 
 def get_node_type(node):
@@ -66,7 +72,7 @@ def get_node_type(node):
     return type(node)
 
 
-ATOMIC_TYPES = [str, int, float, bool]
+ATOMIC_TYPES = [str, int, float, bool, PreservedScalarString, TaggedScalar]
 DICT_TYPES = [dict, OrderedDict, CommentedMap]
 LIST_TYPES = [list, CommentedSeq]
 
@@ -183,7 +189,7 @@ def load_file(filename: Path):
   if filename.suffix == '.json':
     with open(filename) as f:
       return json.load(f)
-  elif filename.suffix == '.yml':
+  elif filename.suffix == '.yml' or filename.suffix == '.yaml':
     yaml = YAML()
     return yaml.load(filename)
   else:

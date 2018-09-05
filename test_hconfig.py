@@ -37,14 +37,17 @@ class HConfigTests(unittest.TestCase):
     self.assertEqual(expected_parsed, result_parsed, "Expected is:\n----\n{}\n----\Result:\n----\n{}".format(
       expected, result))
 
-  def _run_files_test(self, base: str):
+  def _run_files_test(self, base: str, file_type='json'):
     output = StringIO()
-    files = glob("resources/{}_?.json".format(base))
+    files = glob("resources/{}_?.{}".format(base, file_type))
     files.sort()
-    merge_files_to_stream(output, *files, output_format='json')
-    expected_output = read_string_from_file("resources/{}_output.json".format(base))
+    merge_files_to_stream(output, *files, output_format=file_type)
+    expected_output = read_string_from_file("resources/{}_output.{}".format(base, file_type))
     # Reserializing output to be compact rather than pretty printed
-    self.assertEqual(output.getvalue(), json.dumps(json.loads(expected_output)))
+    if file_type == 'json':
+      self.assertEqual(output.getvalue(), json.dumps(json.loads(expected_output)))
+    else:
+      self.assertEqual(output.getvalue(), expected_output)
 
   def test_list_merger(self):
     self.assertEqual(
@@ -127,6 +130,9 @@ class HConfigTests(unittest.TestCase):
         },
         "list": [1, 2, 3]
       })
+
+  def test_yaml_inline(self):
+    self._run_files_test("test_yaml_string", 'yaml')
 
   def test_functions(self):
     os.environ['MYN'] = "42"
