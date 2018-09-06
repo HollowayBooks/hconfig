@@ -2,3 +2,4 @@ inline_string: |
   { complex
   multiline
   string
+none: null

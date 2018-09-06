@@ -8,7 +8,7 @@ from setuptools import setup
 
 setup(
   name='HConfig',
-  version='0.4',
+  version='0.5.0',
   packages=[
     'hconfig',
   ],

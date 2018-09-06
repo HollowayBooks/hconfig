@@ -72,7 +72,7 @@ def get_node_type(node):
     return type(node)
 
 
-ATOMIC_TYPES = [str, int, float, bool, PreservedScalarString, TaggedScalar]
+ATOMIC_TYPES = [str, int, float, bool, PreservedScalarString, TaggedScalar, type(None)]
 DICT_TYPES = [dict, OrderedDict, CommentedMap]
 LIST_TYPES = [list, CommentedSeq]
 
