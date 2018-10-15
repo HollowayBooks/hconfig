@@ -8,6 +8,7 @@ from ruamel.yaml import YAML
 import os
 import json
 from glob import glob
+from pathlib import Path
 
 
 def yaml_equal(string1, string2):
@@ -132,7 +133,7 @@ class HConfigTests(unittest.TestCase):
       })
 
   def test_yaml_inline(self):
-    self._run_files_test("test_yaml_string", 'yaml')
+    self._run_files_test("test_yaml_string", file_type='yaml')
 
   def test_functions(self):
     os.environ['MYN'] = "42"
@@ -142,6 +143,10 @@ class HConfigTests(unittest.TestCase):
   def test_function_override(self):
     os.environ['FOO'] = 'bar'
     self._run_files_test("test_function_override")
+
+  def test_include_file_as_list(self):
+    os.environ["HCONFIG_INCLUDE_PATH"] = str(Path("./resources").absolute())
+    self._run_files_test("test_include_file_as_list", file_type='yml')
 
   def test_merge_files(self):
     base_config = """

@@ -1,0 +1,4 @@
+sections:
+  - id: hello
+    status: underway
+  - H::include_file_as_list: sections.yml
