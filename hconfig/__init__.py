@@ -100,7 +100,6 @@ def evaluate_function(node: dict):
 
 
 def evaluate_functions(tree):
-  # FIXME: newer versions of ruamel break this check
   if is_type(tree, DICT_TYPES):
     for key, value in tree.items():
       if is_function(value):
