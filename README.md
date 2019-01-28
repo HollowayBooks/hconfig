@@ -39,3 +39,5 @@ pip install twine
 python setup.py sdist
 twine upload dist/HConfig-0.5.0.tar.gz
 ```
+
+_Note: use `hollowayguides` Pypi account, credentials are available in Notion_
