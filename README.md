@@ -56,7 +56,7 @@ hconfig.merge_files("out.json", "in.json", "in2.json")
 
 ## Macros
 
-Hconfig supports functional macros like [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference.html) templates, these are the ones available:
+Hconfig supports functional macros in a style similar to those used in [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference.html) templates. Currently supported macros:
 
 | Name           | Description                                                   |
 | -------------- | ------------------------------------------------------------- |
