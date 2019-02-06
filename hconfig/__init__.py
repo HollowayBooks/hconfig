@@ -1,3 +1,4 @@
+# Copyright 2019 Holloway Inc
 """
 Simple config handling with hierarchical overrides.
 Combines and merges multiple YAML files so child files "inherit" values from "parent" ones.
