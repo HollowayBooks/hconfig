@@ -1,3 +1,5 @@
+# Copyright 2019 Holloway Inc
+
 import unittest
 
 from hconfig import _merge_lists_by_dict_id, merge_trees, merge_files, IncompatibleValues, merge_files_to_stream
@@ -79,30 +81,29 @@ class HConfigTests(unittest.TestCase):
     self.assertEqual(merge_trees({"a": 1, "c": 3}, {"b": 2, "a": 10}, strict_base=False), {"c": 3, "b": 2, "a": 10})
     # Lists of dicts are made unique by id (preserving order):
     self.assertEqual(
-      merge_trees(
-        [{
-          "id": "a",
-          "value": 1
-        }], [{
-          "id": "x",
-          "value": 99
-        }, {
-          "id": "b",
-          "value": 2
-        }, {
-          "id": "a",
-          "value": 3
-        }],
-        strict_base=False), [{
-          "id": "x",
-          "value": 99
-        }, {
-          "id": "b",
-          "value": 2
-        }, {
-          "id": "a",
-          "value": 3
-        }])
+      merge_trees([{
+        "id": "a",
+        "value": 1
+      }], [{
+        "id": "x",
+        "value": 99
+      }, {
+        "id": "b",
+        "value": 2
+      }, {
+        "id": "a",
+        "value": 3
+      }],
+                  strict_base=False), [{
+                    "id": "x",
+                    "value": 99
+                  }, {
+                    "id": "b",
+                    "value": 2
+                  }, {
+                    "id": "a",
+                    "value": 3
+                  }])
 
   def test_type_consistency(self):
     with self.assertRaises(IncompatibleValues):
