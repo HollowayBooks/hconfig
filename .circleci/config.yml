@@ -50,4 +50,3 @@ workflows:
     jobs:
       - build-3.6
       - build-3.7
-      - build-pypy
